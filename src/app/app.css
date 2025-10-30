@@ -18,6 +18,7 @@ body {
 
 h1 {
   color: #333;
+  margin-top: 15px;
   margin-bottom: 20px;
   text-align: center;
 }
@@ -56,7 +57,7 @@ h1 {
 .status-text {
   font-weight: 500;
   color: #333;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .help-btn {
@@ -251,28 +252,33 @@ h1 {
 }
 
 .job-config {
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 4px;
-  padding: 15px;
-  margin-bottom: 15px;
+  background-color: #ffffff;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,123,255,0.1);
 }
 
 .job-config h3 {
-  color: #333;
-  font-size: 18px;
+  color: #007bff;
+  font-size: 20px;
   margin-bottom: 15px;
+  font-weight: 600;
 }
 
 .config-row {
-  margin-bottom: 12px;
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .config-row label {
-  display: block;
-  margin-bottom: 5px;
+  flex: 0 0 100px;
+  margin-bottom: 0;
   color: #555;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 16px;
 }
 
@@ -392,7 +398,7 @@ th {
   text-align: left;
   color: #555;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 18px;
   border-bottom: 2px solid #dee2e6;
 }
 
@@ -400,7 +406,7 @@ td {
   padding: 12px;
   border-bottom: 1px solid #dee2e6;
   color: #333;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 tbody tr:hover {
@@ -617,7 +623,17 @@ tbody tr:hover {
   }
 
   .job-config {
-    padding: 10px;
+    padding: 15px;
+  }
+
+  .config-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .config-row label {
+    flex: none;
   }
 
   .duration-selector {
