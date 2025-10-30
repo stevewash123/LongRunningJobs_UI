@@ -1,0 +1,242 @@
+<div class="container">
+  <h1>Long Running Jobs Demo - Hangfire + SignalR</h1>
+
+  <!-- Help and Dashboard Buttons (positioned at top per user request) -->
+  <div class="button-group">
+    <button class="help-btn" (click)="showHelp = true">
+      ❓ About Technologies
+    </button>
+    <a href="http://localhost:5042/hangfire" target="_blank" class="dashboard-btn">
+      📊 Hangfire Dashboard
+    </a>
+  </div>
+
+  <!-- Connection Status -->
+  <div class="connection-status" [class.connected]="isConnected" [class.disconnected]="!isConnected">
+    <span class="status-icon">{{ isConnected ? '🟢' : '🔴' }}</span>
+    <span class="status-text">{{ isConnected ? 'Connected to SignalR Hub' : 'Disconnected' }}</span>
+  </div>
+
+  <!-- Job Updates Marquee -->
+  <div class="job-marquee" *ngIf="latestJobUpdates.length > 0">
+    <div class="marquee-content">
+      <span *ngFor="let update of latestJobUpdates; let last = last"
+            class="marquee-item"
+            [style.color]="update.isCompleted ? getJobColor(update.name) : ''">
+        🔄 {{ update.name }}: {{ update.message }}{{ !last ? ' • ' : '' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Status Bar (shown when jobs are active) -->
+  <div class="status-bar" *ngIf="activeJobs.length > 0">
+    <h2>📊 Active Jobs Status (Updates via SignalR)</h2>
+    <div class="job-status-item" *ngFor="let job of activeJobs">
+      <span class="job-name" [style.color]="job.status === 'Completed' ? getJobColor(job.name) : ''">{{ job.name }}</span>
+      <div class="progress-bar-container">
+        <div class="progress-bar"
+             [style.width.%]="job.progress"
+             [class.completed]="job.status === 'Completed'"
+             [style.--job-color]="getJobColor(job.name)"></div>
+      </div>
+      <span class="job-status-text" [style.color]="job.status === 'Completed' ? getJobColor(job.name) : ''">{{ job.progress }}% {{ job.status }}</span>
+    </div>
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="content-grid">
+    <!-- Left Panel: Job Submission -->
+    <div class="job-panel">
+      <h2>🚀 Submit Background Jobs</h2>
+
+      <button
+        class="submit-btn"
+        [disabled]="isSubmitting || activeJobs.length > 0"
+        (click)="submitJobs()">
+        {{ isSubmitting ? '⏳ Submitting...' : '▶ Start Jobs' }}
+      </button>
+
+      <div class="form-group">
+        <label for="jobCount">Number of Jobs:</label>
+        <select [(ngModel)]="selectedJobCount" (change)="updateJobConfigurations()">
+          <option *ngFor="let count of [1,2,3,4,5,6]" [value]="count">{{ count }} Job{{ count > 1 ? 's' : '' }}</option>
+        </select>
+      </div>
+
+      <!-- Dynamic Job Configuration Sections -->
+      <div class="job-config" *ngFor="let config of jobConfigurations; let i = index">
+        <h3>{{ config.name }} Configuration</h3>
+
+        <div class="config-row">
+          <label>Duration:</label>
+          <div class="duration-selector">
+            <input
+              type="number"
+              class="duration-input"
+              [(ngModel)]="config.durationSeconds"
+              min="10"
+              max="60"
+              step="5">
+            <span class="duration-label">seconds (5s intervals, 10-60s)</span>
+          </div>
+        </div>
+
+        <div class="config-row">
+          <label>Schedule Delay:</label>
+          <div class="duration-selector">
+            <input
+              type="number"
+              class="duration-input"
+              [(ngModel)]="config.scheduleDelaySeconds"
+              min="0"
+              max="30"
+              step="5">
+            <span class="duration-label">seconds (5s intervals, 0-30s, 0 = immediate)</span>
+          </div>
+        </div>
+      </div>
+
+      <button
+        class="clear-btn"
+        *ngIf="activeJobs.length > 0"
+        (click)="clearCompletedJobs()">
+        🗑️ Clear Completed
+      </button>
+    </div>
+
+    <!-- Right Panel: Data Table -->
+    <div class="data-panel">
+      <h2>📋 Northwind Products (Demonstrates that UI is not blocked and jobs run in the background)</h2>
+
+      <div class="table-controls">
+        <input
+          type="text"
+          class="search-input"
+          placeholder="Search products..."
+          [(ngModel)]="searchTerm"
+          (input)="searchProducts()">
+        <select
+          class="filter-select"
+          [(ngModel)]="selectedCategory"
+          (change)="searchProducts()">
+          <option value="">All Categories</option>
+          <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+        </select>
+      </div>
+
+      <div class="loading-indicator" *ngIf="isLoadingProducts">
+        <span>🔄 Loading products...</span>
+      </div>
+
+      <table *ngIf="!isLoadingProducts">
+        <thead>
+          <tr>
+            <th>Product ID</th>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Unit Price</th>
+            <th>Units in Stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let product of displayedProducts">
+            <td>{{ product.productId }}</td>
+            <td>{{ product.productName }}</td>
+            <td>{{ product.category }}</td>
+            <td>${{ product.unitPrice.toFixed(2) }}</td>
+            <td>{{ product.unitsInStock }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pagination" *ngIf="!isLoadingProducts && totalPages > 1">
+        <button
+          class="page-btn"
+          [disabled]="currentPage === 1"
+          (click)="changePage(currentPage - 1)">
+          « Prev
+        </button>
+        <button
+          *ngFor="let page of getVisiblePages()"
+          class="page-btn"
+          [class.active]="page === currentPage"
+          (click)="changePage(page)">
+          {{ page }}
+        </button>
+        <button
+          class="page-btn"
+          [disabled]="currentPage === totalPages"
+          (click)="changePage(currentPage + 1)">
+          Next »
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Help Dialog -->
+  <div class="dialog-overlay" *ngIf="showHelp" (click)="showHelp = false">
+    <div class="dialog-content" (click)="$event.stopPropagation()">
+      <div class="dialog-header">
+        <h2>About the Technologies</h2>
+        <button class="close-btn" (click)="showHelp = false">✕</button>
+      </div>
+
+      <div class="dialog-tabs">
+        <button class="tab-btn" [class.active]="activeTab === 'demo'" (click)="activeTab = 'demo'">
+          Demo Features
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'signalr'" (click)="activeTab = 'signalr'">
+          SignalR
+        </button>
+        <button class="tab-btn" [class.active]="activeTab === 'hangfire'" (click)="activeTab = 'hangfire'">
+          Hangfire
+        </button>
+      </div>
+
+      <div class="dialog-body">
+        <div *ngIf="activeTab === 'demo'" class="tab-content">
+          <h3>📝 Enterprise Background Job Processing</h3>
+          <p>
+            This application demonstrates enterprise background job processing patterns using industry-standard technologies. The demo showcases real-world scenarios for handling long-running operations without blocking user interfaces.
+          </p>
+
+          <h3>Key Features Demonstrated</h3>
+          <p>
+            • Jobs are queued with Hangfire and run independently in the background<br>
+            • SignalR provides real-time progress updates without polling<br>
+            • The product table remains fully interactive while jobs execute (non-blocking UI)<br>
+            • Job progress is visually tracked with animated progress bars<br>
+            • Multiple concurrent jobs show the scalability of the Hangfire framework<br>
+            • Color-coded job identification with candy cane progress animations<br>
+            • Configurable job scheduling and duration settings
+          </p>
+        </div>
+
+        <div *ngIf="activeTab === 'signalr'" class="tab-content">
+          <h3>What is SignalR?</h3>
+          <p>
+            SignalR is a real-time web communication library that enables server-to-client communication. It allows the server to push content to connected clients instantly as it becomes available, rather than having the server wait for a client to request new data.
+          </p>
+
+          <h3>Background Process Reporting</h3>
+          <p>
+            SignalR excels at background process reporting - bridging HTTP updates from long-running SaaS processes to real-time UI notifications. This end-to-end design receives HTTP callbacks from external services (payment processors, document generators, AI pipelines) and relays them instantly to connected clients. The demo showcases live progress tracking, job status changes, and completion notifications without polling or page refreshes.
+          </p>
+        </div>
+
+        <div *ngIf="activeTab === 'hangfire'" class="tab-content">
+          <h3>What is Hangfire?</h3>
+          <p>
+            Hangfire is a background job processing library for .NET applications. It allows you to perform long-running, CPU-intensive, or time-consuming tasks in the background without blocking the main application thread, ensuring responsive user interfaces.
+          </p>
+
+          <h3>Common Use Cases</h3>
+          <p>
+            Hangfire excels at email sending, file processing, report generation, database maintenance, scheduled tasks, data synchronization, image/video processing, and any work that shouldn't block user interactions. It provides persistence, retry logic, and monitoring dashboards.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
